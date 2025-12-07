@@ -4,6 +4,9 @@ import { useState } from "react";
 import Stepper from "../components/Stepper";
 import DocumentSelectionStep from "../components/DocumentSelectionStep";
 import StepScanDocument from "../components/StepScanDocument";
+import StepUploadDocument from "../components/StepUploadDocument";
+import StepPhotoFaceMatch from "../components/StepPhotoFaceMatch";
+import StepReviewStatus from "../components/StepReviewStatus";
 
 export default function Home() {
   const [currentStep, setCurrentStep] = useState(1);
@@ -11,14 +14,27 @@ export default function Home() {
   const [kycData, setKycData] = useState({
     identityProof: null,
     addressProof: null,
-    scanQuality: null,
-    documentImageName: null,
+    scanQualityIdentity: null,
+    scanQualityAddress: null,
+    documentImageNameIdentity: null,
+    documentImageNameAddress: null,
+    identityDocumentPreview: null,
+    addressDocumentPreview: null,
+    faceLiveCapture: null,
+    facePhotoFileName: null,
+    facePhotoPreview: null,
+    faceMatchScore: null,
+    uploadStatus: null,
     attempts: {
-      scan: 0,
+      scanIdentity: 0,
+      scanAddress: 0,
+      upload: 0,
     },
   });
   const [docError, setDocError] = useState(false);
   const [scanError, setScanError] = useState(false);
+  const [uploadError, setUploadError] = useState(false);
+  const [faceError, setFaceError] = useState(false);
 
   const handleNext = () => {
     if (currentStep === 1) {
@@ -39,22 +55,57 @@ export default function Home() {
     }
 
     if (currentStep === 2) {
-      const score = kycData.scanQuality;
-      const attempts = kycData.attempts?.scan ?? 0;
+      const scoreIdentity = kycData.scanQualityIdentity;
+      const scoreAddress = kycData.scanQualityAddress;
+      const attemptsIdentity = kycData.attempts?.scanIdentity ?? 0;
+      const attemptsAddress = kycData.attempts?.scanAddress ?? 0;
 
-      if (score == null) {
+      // Require both documents to be scanned at least once
+      if (scoreIdentity == null || scoreAddress == null) {
         setScanError(true);
         return;
       }
 
-      if (score >= 70) {
-        setScanError(false);
-      } else if (attempts < 3) {
+      const identityOk =
+        scoreIdentity >= 70 || (scoreIdentity < 70 && attemptsIdentity >= 3);
+      const addressOk =
+        scoreAddress >= 70 || (scoreAddress < 70 && attemptsAddress >= 3);
+
+      if (!identityOk || !addressOk) {
         setScanError(true);
         return;
-      } else {
-        // attempts >= 3 and score < 70 → allow next with manual verification
-        setScanError(false);
+      }
+
+      setScanError(false);
+    }
+
+    if (currentStep === 3) {
+      const status = kycData.uploadStatus;
+      if (status !== "success") {
+        setUploadError(true);
+        return;
+      }
+
+      setUploadError(false);
+    }
+
+    if (currentStep === 4) {
+      const hasLiveCapture = !!kycData.faceLiveCapture;
+      const hasUploadedPhoto = !!kycData.facePhotoPreview;
+
+      if (!hasLiveCapture || !hasUploadedPhoto) {
+        setFaceError(true);
+        return;
+      }
+
+      setFaceError(false);
+
+      // Set a default high face match score once both photos are provided
+      if (kycData.faceMatchScore == null) {
+        setKycData((prev) => ({
+          ...prev,
+          faceMatchScore: 85,
+        }));
       }
     }
 
@@ -101,7 +152,28 @@ export default function Home() {
               />
             )}
 
-            {currentStep > 2 && (
+            {currentStep === 3 && (
+              <StepUploadDocument
+                kycData={kycData}
+                setKycData={setKycData}
+                error={uploadError}
+                autoStart
+              />
+            )}
+
+            {currentStep === 4 && (
+              <StepPhotoFaceMatch
+                kycData={kycData}
+                setKycData={setKycData}
+                error={faceError}
+              />
+            )}
+
+            {currentStep === 5 && (
+              <StepReviewStatus kycData={kycData} />
+            )}
+
+            {currentStep > 5 && (
               <div className="flex min-h-[180px] items-center justify-center text-center">
                 <p className="text-sm text-slate-400 sm:text-base">
                   Step {currentStep} content will appear here.

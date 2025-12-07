@@ -3,10 +3,20 @@
 import { useState } from "react";
 
 export default function StepScanDocument({ kycData, setKycData, error }) {
-  const attempts = kycData?.attempts?.scan ?? 0;
-  const score = kycData?.scanQuality ?? null;
-  const uploadedName = kycData?.documentImageName ?? null;
-  const [previewUrl, setPreviewUrl] = useState(null);
+  const identityDoc = kycData?.identityProof || "Identity document";
+  const addressDoc = kycData?.addressProof || "Address document";
+
+  const identityAttempts = kycData?.attempts?.scanIdentity ?? 0;
+  const addressAttempts = kycData?.attempts?.scanAddress ?? 0;
+
+  const identityScore = kycData?.scanQualityIdentity ?? null;
+  const addressScore = kycData?.scanQualityAddress ?? null;
+
+  const identityUploadedName = kycData?.documentImageNameIdentity ?? null;
+  const addressUploadedName = kycData?.documentImageNameAddress ?? null;
+
+  const [identityPreviewUrl, setIdentityPreviewUrl] = useState(null);
+  const [addressPreviewUrl, setAddressPreviewUrl] = useState(null);
 
   const labelForScore = (value) => {
     if (value == null) return null;
@@ -15,29 +25,52 @@ export default function StepScanDocument({ kycData, setKycData, error }) {
     return "Good";
   };
 
-  const qualityLabel = labelForScore(score);
   const maxAttempts = 3;
 
-  const handleSimulateScan = () => {
-    if (!uploadedName) {
-      return;
-    }
+  const identityQualityLabel = labelForScore(identityScore);
+  const addressQualityLabel = labelForScore(addressScore);
+
+  const handleSimulateScan = (type) => {
+    const isIdentity = type === "identity";
+    const currentAttempts = isIdentity ? identityAttempts : addressAttempts;
+    if (currentAttempts >= maxAttempts) return;
+    const uploadedName = isIdentity
+      ? identityUploadedName
+      : addressUploadedName;
+
+    if (!uploadedName) return;
 
     const randomScore = Math.floor(Math.random() * 101); // 0–100
-    const nextAttempts = attempts + 1;
 
     setKycData((prev) => ({
       ...prev,
-      scanQuality: randomScore,
+      scanQualityIdentity: isIdentity
+        ? randomScore
+        : prev?.scanQualityIdentity ?? prev?.scanQualityIdentity,
+      scanQualityAddress: !isIdentity
+        ? randomScore
+        : prev?.scanQualityAddress ?? prev?.scanQualityAddress,
       attempts: {
         ...(prev?.attempts || {}),
-        scan: nextAttempts,
+        scanIdentity: isIdentity
+          ? (prev?.attempts?.scanIdentity ?? 0) + 1
+          : prev?.attempts?.scanIdentity ?? 0,
+        scanAddress: !isIdentity
+          ? (prev?.attempts?.scanAddress ?? 0) + 1
+          : prev?.attempts?.scanAddress ?? 0,
       },
     }));
   };
 
-  const reachedMaxWithLowScore =
-    attempts >= maxAttempts && score != null && score < 70;
+  const identityReachedMaxWithLowScore =
+    identityAttempts >= maxAttempts &&
+    identityScore != null &&
+    identityScore < 70;
+
+  const addressReachedMaxWithLowScore =
+    addressAttempts >= maxAttempts &&
+    addressScore != null &&
+    addressScore < 70;
 
   return (
     <div className="space-y-5">
@@ -51,15 +84,15 @@ export default function StepScanDocument({ kycData, setKycData, error }) {
         </p>
       </div>
 
-      <div className="flex flex-col gap-4 sm:flex-row">
+      <div className="flex flex-col gap-4 lg:flex-row">
+        {/* Identity document panel */}
         <div className="flex-1 space-y-4">
           <div className="rounded-xl border min-h-[25vh] border-dashed border-slate-300 bg-white/60 p-4 shadow-sm">
             <p className="text-xs font-medium text-slate-600 sm:text-sm">
-              Upload document image
+              Upload image for identity proof ({identityDoc})
             </p>
             <p className="mt-1 text-[11px] text-slate-500 sm:text-xs">
-              Upload a clear photo or scan of your document. Only one document image can be
-              uploaded for this step.
+              Upload a clear photo or scan of your identity document.
             </p>
 
             <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -73,107 +106,232 @@ export default function StepScanDocument({ kycData, setKycData, error }) {
                     const file = e.target.files?.[0] || null;
                     if (file) {
                       const url = URL.createObjectURL(file);
-                      setPreviewUrl(url);
+                      setIdentityPreviewUrl(url);
+                      setKycData((prev) => ({
+                        ...prev,
+                        documentImageNameIdentity: file.name,
+                        identityDocumentPreview: url,
+                      }));
                     } else {
-                      setPreviewUrl(null);
+                      setIdentityPreviewUrl(null);
+                      setKycData((prev) => ({
+                        ...prev,
+                        documentImageNameIdentity: null,
+                        identityDocumentPreview: null,
+                      }));
                     }
-                    setKycData((prev) => ({
-                      ...prev,
-                      documentImageName: file ? file.name : null,
-                    }));
                   }}
                 />
               </label>
 
               <div className="text-[11px] text-slate-500 sm:text-xs">
-                {uploadedName ? (
-                  <span className="break-all">Selected: {uploadedName}</span>
+                {identityUploadedName ? (
+                  <span className="break-all">Selected: {identityUploadedName}</span>
                 ) : (
                   <span>No document selected</span>
                 )}
               </div>
             </div>
 
-            {previewUrl && (
+            {identityPreviewUrl && (
               <div className="mt-3 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
                 <img
-                  src={previewUrl}
-                  alt="Uploaded document preview"
+                  src={identityPreviewUrl}
+                  alt="Identity document preview"
                   className="h-40 w-full bg-slate-100 object-contain"
                 />
               </div>
             )}
           </div>
+
+          <div className="space-y-4">
+            <button
+              type="button"
+              onClick={() => handleSimulateScan("identity")}
+              disabled={!identityUploadedName || identityAttempts >= maxAttempts}
+              className="inline-flex w-full items-center justify-center rounded-full bg-slate-900 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+            >
+              Simulate Scan (Identity)
+            </button>
+
+            <div className="space-y-2 rounded-xl border border-slate-100 bg-white px-3 py-3 sm:px-4 sm:py-4">
+              <p className="text-xs font-medium text-slate-600 sm:text-sm">
+                Scan Quality - Identity
+              </p>
+              {identityScore == null ? (
+                <p className="text-xs text-slate-400 sm:text-sm">
+                  No scan yet. Tap "Simulate Scan" to generate a quality score.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <p className="text-sm font-semibold text-slate-900">
+                        {identityScore} / 100
+                      </p>
+                      <p
+                        className={`text-xs font-medium sm:text-sm
+                          ${identityQualityLabel === "Good" ? "text-emerald-600" : ""}
+                          ${identityQualityLabel === "Average" ? "text-amber-600" : ""}
+                          ${identityQualityLabel === "Poor" ? "text-red-600" : ""}
+                        `}
+                      >
+                        {identityQualityLabel}
+                      </p>
+                    </div>
+                  </div>
+
+                  {identityScore < 70 && (
+                    <div className="border-t border-slate-100 pt-2">
+                      <p className="text-[11px] font-medium text-slate-500 sm:text-xs">
+                        Tips to improve your scan:
+                      </p>
+                      <ul className="mt-1 space-y-0.5 text-[11px] text-slate-500 sm:text-xs list-disc pl-4">
+                        <li>Place the document on a flat surface.</li>
+                        <li>Avoid glare and reflections on the card.</li>
+                        <li>Fill the frame so the text is clearly visible.</li>
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <p className="mt-3 text-xs text-slate-500 sm:text-xs">
+                Attempts used: <span className="font-semibold">{identityAttempts}</span> / {maxAttempts}
+              </p>
+            </div>
+          </div>
         </div>
 
+        {/* Address document panel */}
         <div className="flex-1 space-y-4">
-          <button
-            type="button"
-            onClick={handleSimulateScan}
-            disabled={!uploadedName}
-            className="inline-flex w-full items-center justify-center rounded-full bg-slate-900 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
-          >
-            Simulate Scan
-          </button>
-
-          <div className="space-y-2 rounded-xl border border-slate-100 bg-white px-3 py-3 sm:px-4 sm:py-4">
+          <div className="rounded-xl border min-h-[25vh] border-dashed border-slate-300 bg-white/60 p-4 shadow-sm">
             <p className="text-xs font-medium text-slate-600 sm:text-sm">
-              Scan Quality
+              Upload image for address proof ({addressDoc})
             </p>
-            {score == null ? (
-              <p className="text-xs text-slate-400 sm:text-sm">
-                No scan yet. Tap "Simulate Scan" to generate a quality score.
-              </p>
-            ) : (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <p className="text-sm font-semibold text-slate-900">
-                      {score} / 100
-                    </p>
-                    <p
-                      className={`text-xs font-medium sm:text-sm
-                        ${qualityLabel === "Good" ? "text-emerald-600" : ""}
-                        ${qualityLabel === "Average" ? "text-amber-600" : ""}
-                        ${qualityLabel === "Poor" ? "text-red-600" : ""}
-                      `}
-                    >
-                      {qualityLabel}
-                    </p>
-                  </div>
-                </div>
+            <p className="mt-1 text-[11px] text-slate-500 sm:text-xs">
+              Upload a clear photo or scan of your address document.
+            </p>
 
-                {score < 70 && (
-                  <div className="border-t border-slate-100 pt-2">
-                    <p className="text-[11px] font-medium text-slate-500 sm:text-xs">
-                      Tips to improve your scan:
-                    </p>
-                    <ul className="mt-1 space-y-0.5 text-[11px] text-slate-500 sm:text-xs list-disc pl-4">
-                      <li>Place the document on a flat surface.</li>
-                      <li>Avoid glare and reflections on the card.</li>
-                      <li>Fill the frame so the text is clearly visible.</li>
-                    </ul>
-                  </div>
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <label className="inline-flex cursor-pointer items-center justify-center rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 sm:text-sm">
+                <span>Choose image</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] || null;
+                    if (file) {
+                      const url = URL.createObjectURL(file);
+                      setAddressPreviewUrl(url);
+                      setKycData((prev) => ({
+                        ...prev,
+                        documentImageNameAddress: file.name,
+                        addressDocumentPreview: url,
+                      }));
+                    } else {
+                      setAddressPreviewUrl(null);
+                      setKycData((prev) => ({
+                        ...prev,
+                        documentImageNameAddress: null,
+                        addressDocumentPreview: null,
+                      }));
+                    }
+                  }}
+                />
+              </label>
+
+              <div className="text-[11px] text-slate-500 sm:text-xs">
+                {addressUploadedName ? (
+                  <span className="break-all">Selected: {addressUploadedName}</span>
+                ) : (
+                  <span>No document selected</span>
                 )}
               </div>
-            )}
+            </div>
 
-            <p className="mt-3 text-xs text-slate-500 sm:text-xs">
-              Attempts used: <span className="font-semibold">{attempts}</span> / {maxAttempts}
-            </p>
+            {addressPreviewUrl && (
+              <div className="mt-3 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+                <img
+                  src={addressPreviewUrl}
+                  alt="Address document preview"
+                  className="h-40 w-full bg-slate-100 object-contain"
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-4">
+            <button
+              type="button"
+              onClick={() => handleSimulateScan("address")}
+              disabled={!addressUploadedName || addressAttempts >= maxAttempts}
+              className="inline-flex w-full items-center justify-center rounded-full bg-slate-900 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+            >
+              Simulate Scan (Address)
+            </button>
+
+            <div className="space-y-2 rounded-xl border border-slate-100 bg-white px-3 py-3 sm:px-4 sm:py-4">
+              <p className="text-xs font-medium text-slate-600 sm:text-sm">
+                Scan Quality - Address
+              </p>
+              {addressScore == null ? (
+                <p className="text-xs text-slate-400 sm:text-sm">
+                  No scan yet. Tap "Simulate Scan" to generate a quality score.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <p className="text-sm font-semibold text-slate-900">
+                        {addressScore} / 100
+                      </p>
+                      <p
+                        className={`text-xs font-medium sm:text-sm
+                          ${addressQualityLabel === "Good" ? "text-emerald-600" : ""}
+                          ${addressQualityLabel === "Average" ? "text-amber-600" : ""}
+                          ${addressQualityLabel === "Poor" ? "text-red-600" : ""}
+                        `}
+                      >
+                        {addressQualityLabel}
+                      </p>
+                    </div>
+                  </div>
+
+                  {addressScore < 70 && (
+                    <div className="border-t border-slate-100 pt-2">
+                      <p className="text-[11px] font-medium text-slate-500 sm:text-xs">
+                        Tips to improve your scan:
+                      </p>
+                      <ul className="mt-1 space-y-0.5 text-[11px] text-slate-500 sm:text-xs list-disc pl-4">
+                        <li>Place the document on a flat surface.</li>
+                        <li>Avoid glare and reflections on the card.</li>
+                        <li>Fill the frame so the text is clearly visible.</li>
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <p className="mt-3 text-xs text-slate-500 sm:text-xs">
+                Attempts used: <span className="font-semibold">{addressAttempts}</span> / {maxAttempts}
+              </p>
+            </div>
           </div>
         </div>
       </div>
 
-      {error && score != null && score < 70 && attempts < maxAttempts && (
+      {error && (
         <p className="text-xs font-medium text-red-600 sm:text-sm">
           Document quality is low. It might cause problem during kyc verification.
         </p>
       )}
 
-      {reachedMaxWithLowScore && (
+      {(identityReachedMaxWithLowScore || addressReachedMaxWithLowScore) && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-xs text-amber-800 sm:px-4 sm:py-3 sm:text-sm">
-          Maximum attempts reached. Your case will be sent for manual verification.
+          Maximum attempts reached for one or more documents. Your case will be sent
+          for manual verification.
         </div>
       )}
     </div>
