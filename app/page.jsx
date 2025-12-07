@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Stepper from "../components/Stepper";
 import DocumentSelectionStep from "../components/DocumentSelectionStep";
+import StepScanDocument from "../components/StepScanDocument";
 
 export default function Home() {
   const [currentStep, setCurrentStep] = useState(1);
@@ -10,8 +11,14 @@ export default function Home() {
   const [kycData, setKycData] = useState({
     identityProof: null,
     addressProof: null,
+    scanQuality: null,
+    documentImageName: null,
+    attempts: {
+      scan: 0,
+    },
   });
   const [docError, setDocError] = useState(false);
+  const [scanError, setScanError] = useState(false);
 
   const handleNext = () => {
     if (currentStep === 1) {
@@ -29,6 +36,26 @@ export default function Home() {
       }
 
       setDocError(false);
+    }
+
+    if (currentStep === 2) {
+      const score = kycData.scanQuality;
+      const attempts = kycData.attempts?.scan ?? 0;
+
+      if (score == null) {
+        setScanError(true);
+        return;
+      }
+
+      if (score >= 70) {
+        setScanError(false);
+      } else if (attempts < 3) {
+        setScanError(true);
+        return;
+      } else {
+        // attempts >= 3 and score < 70 → allow next with manual verification
+        setScanError(false);
+      }
     }
 
     setCurrentStep((prev) => Math.min(maxStep, prev + 1));
@@ -66,7 +93,15 @@ export default function Home() {
               />
             )}
 
-            {currentStep !== 1 && (
+            {currentStep === 2 && (
+              <StepScanDocument
+                kycData={kycData}
+                setKycData={setKycData}
+                error={scanError}
+              />
+            )}
+
+            {currentStep > 2 && (
               <div className="flex min-h-[180px] items-center justify-center text-center">
                 <p className="text-sm text-slate-400 sm:text-base">
                   Step {currentStep} content will appear here.
