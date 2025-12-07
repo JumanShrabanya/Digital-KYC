@@ -6,7 +6,8 @@ export default function StepPhotoFaceMatch({ kycData, setKycData, error }) {
   const videoRef = useRef(null);
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState(null);
-  const [livePreview, setLivePreview] = useState(null);
+  // Initialize from kycData if available
+  const [livePreview, setLivePreview] = useState(kycData?.faceLiveCapture || null);
 
   const uploadedFaceName = kycData?.facePhotoFileName ?? null;
   const uploadedFacePreview = kycData?.facePhotoPreview ?? null;
@@ -50,17 +51,24 @@ export default function StepPhotoFaceMatch({ kycData, setKycData, error }) {
 
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     const dataUrl = canvas.toDataURL("image/png");
+    
+    // Update both local state and kycData
     setLivePreview(dataUrl);
     setKycData((prev) => ({
       ...prev,
       faceLiveCapture: dataUrl,
+      // Also store as preview for persistence
+      facePhotoPreview: dataUrl,
+      facePhotoFileName: `selfie-${Date.now()}.png`
     }));
+    
     // send to selfie upload API (fire and forget)
     fetch("/api/upload/selfie", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ fileBase64: dataUrl }),
     }).catch(() => {});
+    
     // Stop camera after capture so the user sees the frozen frame
     setCameraActive(false);
   };
@@ -70,6 +78,8 @@ export default function StepPhotoFaceMatch({ kycData, setKycData, error }) {
     setKycData((prev) => ({
       ...prev,
       faceLiveCapture: null,
+      facePhotoPreview: null, // Also clear the photo preview
+      facePhotoFileName: null // Clear the filename as well
     }));
     setCameraActive(true);
   };
@@ -81,7 +91,9 @@ export default function StepPhotoFaceMatch({ kycData, setKycData, error }) {
         ...prev,
         facePhotoFileName: null,
         facePhotoPreview: null,
+        faceLiveCapture: null // Also clear any existing live capture
       }));
+      setLivePreview(null);
       return;
     }
 
@@ -92,7 +104,11 @@ export default function StepPhotoFaceMatch({ kycData, setKycData, error }) {
         ...prev,
         facePhotoFileName: file.name,
         facePhotoPreview: base64,
+        faceLiveCapture: base64 // Also set as live capture for consistency
       }));
+      setLivePreview(base64);
+      
+      // Send to photo upload API (fire and forget)
       fetch("/api/upload/photo", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

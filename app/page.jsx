@@ -1,36 +1,65 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Stepper from "../components/Stepper";
 import DocumentSelectionStep from "../components/DocumentSelectionStep";
 import StepScanDocument from "../components/StepScanDocument";
 import StepUploadDocument from "../components/StepUploadDocument";
 import StepPhotoFaceMatch from "../components/StepPhotoFaceMatch";
 import StepReviewStatus from "../components/StepReviewStatus";
+import { useLocalStorage } from "../hooks/useLocalStorage";
+
+// Default KYC data structure
+const defaultKycData = {
+  identityProof: null,
+  addressProof: null,
+  scanQualityIdentity: null,
+  scanQualityAddress: null,
+  documentImageNameIdentity: null,
+  documentImageNameAddress: null,
+  identityDocumentPreview: null,
+  addressDocumentPreview: null,
+  faceLiveCapture: null,
+  facePhotoFileName: null,
+  facePhotoPreview: null,
+  faceMatchScore: null,
+  uploadStatus: null,
+  attempts: {
+    scanIdentity: 0,
+    scanAddress: 0,
+    upload: 0,
+  },
+  // Add base64 fields for API
+  identityDocumentBase64: null,
+  addressDocumentBase64: null,
+};
 
 export default function Home() {
   const [currentStep, setCurrentStep] = useState(1);
   const maxStep = 5;
-  const [kycData, setKycData] = useState({
-    identityProof: null,
-    addressProof: null,
-    scanQualityIdentity: null,
-    scanQualityAddress: null,
-    documentImageNameIdentity: null,
-    documentImageNameAddress: null,
-    identityDocumentPreview: null,
-    addressDocumentPreview: null,
-    faceLiveCapture: null,
-    facePhotoFileName: null,
-    facePhotoPreview: null,
-    faceMatchScore: null,
-    uploadStatus: null,
-    attempts: {
-      scanIdentity: 0,
-      scanAddress: 0,
-      upload: 0,
-    },
-  });
+  
+  // Use localStorage to persist KYC data
+  const [kycData, setKycData, clearKycData] = useLocalStorage("kycData", defaultKycData);
+  
+  // Clear KYC data when reaching the final step and clicking finish
+  const handleFinish = () => {
+    clearKycData();
+    // Optionally redirect or show a success message
+    alert("KYC process completed successfully!");
+  };
+  
+  // Handle step changes with validation
+  const handleStepChange = (newStep) => {
+    // Additional validation can be added here if needed
+    setCurrentStep(newStep);
+    
+    // Save current step to localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('kycCurrentStep', newStep.toString());
+    }
+  };
+
+  // State for form errors
   const [docError, setDocError] = useState(false);
   const [scanError, setScanError] = useState(false);
   const [uploadError, setUploadError] = useState(false);
@@ -50,7 +79,14 @@ export default function Home() {
         setDocError(true);
         return;
       }
-
+      
+      // Save step 1 data
+      setKycData(prev => ({
+        ...prev,
+        identityProof,
+        addressProof
+      }));
+      
       setDocError(false);
     }
 
@@ -105,22 +141,55 @@ export default function Home() {
   };
 
   const handleBack = () => {
-    setCurrentStep((prev) => Math.max(1, prev - 1));
+    const prevStep = Math.max(1, currentStep - 1);
+    setCurrentStep(prevStep);
+    
+    // Save current step to localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('kycCurrentStep', prevStep.toString());
+    }
   };
+  
+  // Load saved step on component mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedStep = localStorage.getItem('kycCurrentStep');
+      if (savedStep) {
+        setCurrentStep(parseInt(savedStep, 10));
+      }
+    }
+  }, []);
 
   return (
     <div className="min-h-screen bg-slate-100 font-sans text-slate-900">
       <main className="flex min-h-screen w-full flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
         <header className="space-y-2">
-          <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-500">
-            Onboarding
-          </p>
-          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-            Digital KYC - Smart Onboarding
-          </h1>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-500">
+                Onboarding
+              </p>
+              <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+                Digital KYC - Smart Onboarding
+              </h1>
+            </div>
+            {currentStep > 1 && (
+              <button
+                onClick={() => {
+                  if (confirm('Are you sure you want to start a new KYC? This will clear all current progress.')) {
+                    clearKycData();
+                    setCurrentStep(1);
+                  }
+                }}
+                className="text-xs text-red-500 hover:text-red-700 hover:underline"
+              >
+                Start New KYC
+              </button>
+            )}
+          </div>
           <p className="max-w-2xl text-sm text-slate-500 sm:text-base">
-            Verify customers in a few guided steps  from selecting documents to
-            final review. This is a single, focused flow with no page reloads.
+            Verify customers in a few guided steps from selecting documents to
+            final review. Your progress is saved automatically.
           </p>
         </header>
 

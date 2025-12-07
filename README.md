@@ -43,13 +43,28 @@ A modern, user-friendly KYC (Know Your Customer) onboarding flow built with Next
 
 ## 🔍 Demo Notes
 
-### Simulated Functionality
-For demonstration purposes, the following features are simulated:
-- Document quality scoring
-- Face matching algorithm
-- Duplicate KYC checks
-- Final KYC decision logic
-- File uploads (converted to base64 but not stored)
+> ⚠️ **IMPORTANT DEMO NOTICE**  
+> All quality checks, validations, and verifications in this demo are **simulated** for demonstration purposes only. This is not a production-ready KYC solution.  
+> 
+> **No actual verification** of documents or identity is performed. The system uses randomized data to simulate a real KYC process.  
+> Please do not upload any sensitive or real personal documents.
+
+### 🎭 Simulated Functionality (For Demo Only)
+
+The following features are **simulated** and do not perform actual verification:
+
+- **Document Quality Scoring**: Random scores between 0-100
+- **Face Matching Algorithm**: Simulated match scores (not real facial recognition)
+- **Duplicate KYC Checks**: Random results with sample customer IDs
+- **Final KYC Decision**: Based on simulated risk factors
+- **File Uploads**: Converted to base64 but **not stored** or verified
+
+### ⚠️ Important Limitations
+
+- **No Real Verification**: This is a frontend demo only
+- **No Data Persistence**: All data is stored in the browser's localStorage and can be cleared
+- **Not for Production**: This is a prototype, not a secure KYC solution
+- **Test Data Only**: Use sample or dummy data for testing
 
 ### Test Data
 - Use any image files for document uploads
@@ -113,17 +128,6 @@ For demonstration purposes, the following features are simulated:
 └── public/                 # Static assets
 ```
 
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 🙏 Acknowledgments
 

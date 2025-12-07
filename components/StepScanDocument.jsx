@@ -15,8 +15,8 @@ export default function StepScanDocument({ kycData, setKycData, error }) {
   const identityUploadedName = kycData?.documentImageNameIdentity ?? null;
   const addressUploadedName = kycData?.documentImageNameAddress ?? null;
 
-  const [identityPreviewUrl, setIdentityPreviewUrl] = useState(null);
-  const [addressPreviewUrl, setAddressPreviewUrl] = useState(null);
+  const [identityPreviewUrl, setIdentityPreviewUrl] = useState(kycData?.identityDocumentPreview || null);
+  const [addressPreviewUrl, setAddressPreviewUrl] = useState(kycData?.addressDocumentPreview || null);
 
   const labelForScore = (value) => {
     if (value == null) return null;
@@ -125,31 +125,7 @@ export default function StepScanDocument({ kycData, setKycData, error }) {
                   type="file"
                   accept="image/*"
                   className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0] || null;
-                    if (file) {
-                      const reader = new FileReader();
-                      reader.onloadend = () => {
-                        const base64 = reader.result;
-                        setIdentityPreviewUrl(base64);
-                        setKycData((prev) => ({
-                          ...prev,
-                          documentImageNameIdentity: file.name,
-                          identityDocumentPreview: base64,
-                          identityDocumentBase64: base64,
-                        }));
-                      };
-                      reader.readAsDataURL(file);
-                    } else {
-                      setIdentityPreviewUrl(null);
-                      setKycData((prev) => ({
-                        ...prev,
-                        documentImageNameIdentity: null,
-                        identityDocumentPreview: null,
-                        identityDocumentBase64: null,
-                      }));
-                    }
-                  }}
+                  onChange={(e) => handleFileChange(e, "identity")}
                 />
               </label>
 
@@ -162,15 +138,25 @@ export default function StepScanDocument({ kycData, setKycData, error }) {
               </div>
             </div>
 
-            {identityPreviewUrl && (
-              <div className="mt-3 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+            <div className="relative flex h-40 items-center justify-center overflow-hidden rounded-lg border-2 border-dashed border-slate-300 bg-slate-50">
+              {identityPreviewUrl || kycData?.identityDocumentPreview ? (
                 <img
-                  src={identityPreviewUrl}
+                  src={identityPreviewUrl || kycData.identityDocumentPreview}
                   alt="Identity document preview"
-                  className="h-40 w-full bg-slate-100 object-contain"
+                  className="h-full w-full object-contain p-1"
+                  onLoad={(e) => {
+                    // Revoke the object URL to avoid memory leaks
+                    if (kycData?.identityDocumentUrl && !identityPreviewUrl) {
+                      URL.revokeObjectURL(kycData.identityDocumentUrl);
+                    }
+                  }}
                 />
-              </div>
-            )}
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-[11px] text-slate-500 sm:text-xs">
+                  No preview available
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="space-y-4">
@@ -249,31 +235,7 @@ export default function StepScanDocument({ kycData, setKycData, error }) {
                   type="file"
                   accept="image/*"
                   className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0] || null;
-                    if (file) {
-                      const reader = new FileReader();
-                      reader.onloadend = () => {
-                        const base64 = reader.result;
-                        setAddressPreviewUrl(base64);
-                        setKycData((prev) => ({
-                          ...prev,
-                          documentImageNameAddress: file.name,
-                          addressDocumentPreview: base64,
-                          addressDocumentBase64: base64,
-                        }));
-                      };
-                      reader.readAsDataURL(file);
-                    } else {
-                      setAddressPreviewUrl(null);
-                      setKycData((prev) => ({
-                        ...prev,
-                        documentImageNameAddress: null,
-                        addressDocumentPreview: null,
-                        addressDocumentBase64: null,
-                      }));
-                    }
-                  }}
+                  onChange={(e) => handleFileChange(e, "address")}
                 />
               </label>
 
@@ -286,15 +248,25 @@ export default function StepScanDocument({ kycData, setKycData, error }) {
               </div>
             </div>
 
-            {addressPreviewUrl && (
-              <div className="mt-3 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+            <div className="relative flex h-40 items-center justify-center overflow-hidden rounded-lg border-2 border-dashed border-slate-300 bg-slate-50">
+              {addressPreviewUrl || kycData?.addressDocumentPreview ? (
                 <img
-                  src={addressPreviewUrl}
+                  src={addressPreviewUrl || kycData.addressDocumentPreview}
                   alt="Address document preview"
-                  className="h-40 w-full bg-slate-100 object-contain"
+                  className="h-full w-full object-contain p-1"
+                  onLoad={(e) => {
+                    // Revoke the object URL to avoid memory leaks
+                    if (kycData?.addressDocumentUrl && !addressPreviewUrl) {
+                      URL.revokeObjectURL(kycData.addressDocumentUrl);
+                    }
+                  }}
                 />
-              </div>
-            )}
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-[11px] text-slate-500 sm:text-xs">
+                  No preview available
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="space-y-4">
