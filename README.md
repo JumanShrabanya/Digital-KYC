@@ -4,7 +4,7 @@ A modern, user-friendly KYC (Know Your Customer) onboarding flow built with Next
 
 ## 🔗 Live Link
 
-[https://digital-kyc.onrender.com]
+[https://digital-kyc-eight.vercel.app]
 
 ## ✨ Key Features
 
