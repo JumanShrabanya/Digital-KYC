@@ -6,11 +6,10 @@ export default function StepPhotoFaceMatch({ kycData, setKycData, error }) {
   const videoRef = useRef(null);
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState(null);
-  // Initialize from kycData if available
+  // Initialize states from kycData if available
   const [livePreview, setLivePreview] = useState(kycData?.faceLiveCapture || null);
-
+  const [uploadedPhoto, setUploadedPhoto] = useState(kycData?.facePhotoPreview || null);
   const uploadedFaceName = kycData?.facePhotoFileName ?? null;
-  const uploadedFacePreview = kycData?.facePhotoPreview ?? null;
 
   useEffect(() => {
     if (!cameraActive) return;
@@ -52,13 +51,12 @@ export default function StepPhotoFaceMatch({ kycData, setKycData, error }) {
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     const dataUrl = canvas.toDataURL("image/png");
     
-    // Update both local state and kycData
+    // Update live capture state only
     setLivePreview(dataUrl);
     setKycData((prev) => ({
       ...prev,
       faceLiveCapture: dataUrl,
-      // Also store as preview for persistence
-      facePhotoPreview: dataUrl,
+      // Don't update facePhotoPreview here
       facePhotoFileName: `selfie-${Date.now()}.png`
     }));
     
@@ -78,8 +76,8 @@ export default function StepPhotoFaceMatch({ kycData, setKycData, error }) {
     setKycData((prev) => ({
       ...prev,
       faceLiveCapture: null,
-      facePhotoPreview: null, // Also clear the photo preview
-      facePhotoFileName: null // Clear the filename as well
+      // Don't clear the uploaded photo here
+      facePhotoFileName: prev.facePhotoPreview ? `selfie-${Date.now()}.png` : null
     }));
     setCameraActive(true);
   };
@@ -87,13 +85,13 @@ export default function StepPhotoFaceMatch({ kycData, setKycData, error }) {
   const handleUploadFace = (e) => {
     const file = e.target.files?.[0] || null;
     if (!file) {
+      // Only clear the uploaded photo, not the live capture
       setKycData((prev) => ({
         ...prev,
         facePhotoFileName: null,
-        facePhotoPreview: null,
-        faceLiveCapture: null // Also clear any existing live capture
+        facePhotoPreview: null
       }));
-      setLivePreview(null);
+      setUploadedPhoto(null);
       return;
     }
 
@@ -103,10 +101,10 @@ export default function StepPhotoFaceMatch({ kycData, setKycData, error }) {
       setKycData((prev) => ({
         ...prev,
         facePhotoFileName: file.name,
-        facePhotoPreview: base64,
-        faceLiveCapture: base64 // Also set as live capture for consistency
+        facePhotoPreview: base64
+        // Don't update faceLiveCapture here
       }));
-      setLivePreview(base64);
+      setUploadedPhoto(base64);
       
       // Send to photo upload API (fire and forget)
       fetch("/api/upload/photo", {
@@ -174,9 +172,9 @@ export default function StepPhotoFaceMatch({ kycData, setKycData, error }) {
                     muted
                     className="h-full w-full object-cover"
                   />
-                ) : livePreview ? (
+                ) : kycData?.faceLiveCapture ? (
                   <img
-                    src={livePreview}
+                    src={kycData.faceLiveCapture}
                     alt="Live capture preview"
                     className="h-full w-full bg-slate-100 object-cover"
                   />
@@ -255,13 +253,13 @@ export default function StepPhotoFaceMatch({ kycData, setKycData, error }) {
               </div>
             </div>
 
-            {uploadedFacePreview && (
+            {(uploadedPhoto || kycData?.facePhotoPreview) && (
               <div className="mt-3 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
                 <div className="flex items-center justify-center bg-slate-50 py-3">
                   <img
-                    src={uploadedFacePreview}
+                    src={uploadedPhoto || kycData.facePhotoPreview}
                     alt="Uploaded passport photo preview"
-                    className="h-40 w-28 bg-slate-100 object-cover sm:w-32"
+                    className="h-56 w-40 bg-slate-100 object-contain p-2 sm:h-64 sm:w-48"
                   />
                 </div>
               </div>

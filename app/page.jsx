@@ -173,19 +173,17 @@ export default function Home() {
                 Digital KYC - Smart Onboarding
               </h1>
             </div>
-            {currentStep > 1 && (
-              <button
-                onClick={() => {
-                  if (confirm('Are you sure you want to start a new KYC? This will clear all current progress.')) {
-                    clearKycData();
-                    setCurrentStep(1);
-                  }
-                }}
-                className="text-xs text-red-500 hover:text-red-700 hover:underline"
-              >
-                Start New KYC
-              </button>
-            )}
+            <button
+              onClick={() => {
+                if (confirm('Are you sure you want to start a new KYC? This will clear all current progress.')) {
+                  clearKycData();
+                  setCurrentStep(1);
+                }
+              }}
+              className="text-xs text-red-500 hover:text-red-700 hover:underline"
+            >
+              Start New KYC
+            </button>
           </div>
           <p className="max-w-2xl text-sm text-slate-500 sm:text-base">
             Verify customers in a few guided steps from selecting documents to

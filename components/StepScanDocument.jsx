@@ -95,6 +95,39 @@ export default function StepScanDocument({ kycData, setKycData, error }) {
     addressScore != null &&
     addressScore < 70;
 
+  const handleFileChange = (e, type) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64 = reader.result;
+      const fileName = file.name;
+      const previewUrl = URL.createObjectURL(file);
+
+      if (type === "identity") {
+        setIdentityPreviewUrl(previewUrl);
+        setKycData((prev) => ({
+          ...prev,
+          documentImageNameIdentity: fileName,
+          identityDocumentBase64: base64,
+          identityDocumentPreview: base64, // Store base64 for persistence
+          identityDocumentUrl: previewUrl, // Store URL for immediate display
+        }));
+      } else {
+        setAddressPreviewUrl(previewUrl);
+        setKycData((prev) => ({
+          ...prev,
+          documentImageNameAddress: fileName,
+          addressDocumentBase64: base64,
+          addressDocumentPreview: base64, // Store base64 for persistence
+          addressDocumentUrl: previewUrl, // Store URL for immediate display
+        }));
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   return (
     <div className="space-y-5">
       <div className="space-y-1">
@@ -118,7 +151,7 @@ export default function StepScanDocument({ kycData, setKycData, error }) {
               Upload a clear photo or scan of your identity document.
             </p>
 
-            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="my-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <label className="inline-flex cursor-pointer items-center justify-center rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 sm:text-sm">
                 <span>Choose image</span>
                 <input
@@ -228,7 +261,7 @@ export default function StepScanDocument({ kycData, setKycData, error }) {
               Upload a clear photo or scan of your address document.
             </p>
 
-            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="my-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <label className="inline-flex cursor-pointer items-center justify-center rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 sm:text-sm">
                 <span>Choose image</span>
                 <input

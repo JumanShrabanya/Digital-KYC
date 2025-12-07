@@ -2,6 +2,10 @@
 
 A modern, user-friendly KYC (Know Your Customer) onboarding flow built with Next.js, designed to streamline customer verification while improving completion rates and reducing abandonment.
 
+## 🔗 Live Link
+
+[https://digital-kyc.onrender.com]
+
 ## ✨ Key Features
 
 - **5-Step Guided Process**: Clear, linear flow from document selection to final verification
