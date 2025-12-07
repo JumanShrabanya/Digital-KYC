@@ -55,6 +55,12 @@ export default function StepPhotoFaceMatch({ kycData, setKycData, error }) {
       ...prev,
       faceLiveCapture: dataUrl,
     }));
+    // send to selfie upload API (fire and forget)
+    fetch("/api/upload/selfie", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fileBase64: dataUrl }),
+    }).catch(() => {});
     // Stop camera after capture so the user sees the frozen frame
     setCameraActive(false);
   };
@@ -79,13 +85,43 @@ export default function StepPhotoFaceMatch({ kycData, setKycData, error }) {
       return;
     }
 
-    const url = URL.createObjectURL(file);
-    setKycData((prev) => ({
-      ...prev,
-      facePhotoFileName: file.name,
-      facePhotoPreview: url,
-    }));
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64 = reader.result;
+      setKycData((prev) => ({
+        ...prev,
+        facePhotoFileName: file.name,
+        facePhotoPreview: base64,
+      }));
+      fetch("/api/upload/photo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileBase64: base64 }),
+      }).catch(() => {});
+    };
+    reader.readAsDataURL(file);
   };
+
+  // When both photos are present and we don't yet have a faceMatchScore,
+  // request a simulated face match score from the backend.
+  useEffect(() => {
+    if (!kycData?.faceLiveCapture || !kycData?.facePhotoPreview) return;
+    if (kycData?.faceMatchScore != null) return;
+
+    fetch("/api/check/face-match", {
+      method: "POST",
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (typeof data.matchScore === "number") {
+          setKycData((prev) => ({
+            ...prev,
+            faceMatchScore: data.matchScore,
+          }));
+        }
+      })
+      .catch(() => {});
+  }, [kycData?.faceLiveCapture, kycData?.facePhotoPreview, kycData?.faceMatchScore, setKycData]);
 
   return (
     <div className="space-y-5">

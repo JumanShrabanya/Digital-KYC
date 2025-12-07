@@ -99,14 +99,6 @@ export default function Home() {
       }
 
       setFaceError(false);
-
-      // Set a default high face match score once both photos are provided
-      if (kycData.faceMatchScore == null) {
-        setKycData((prev) => ({
-          ...prev,
-          faceMatchScore: 85,
-        }));
-      }
     }
 
     setCurrentStep((prev) => Math.min(maxStep, prev + 1));

@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
 export default function StepReviewStatus({ kycData }) {
   const {
     identityProof,
@@ -46,8 +48,6 @@ export default function StepReviewStatus({ kycData }) {
   else if (matchScore >= 50) matchCategory = "Medium Match - Manual Review Needed";
 
   // Simulated
-  const duplicateCheck = "No duplicate found";
-
   const authenticityIdentity =
     identityDocStatus === "Accepted" ? "Authentic" : "Verification Needed";
   const authenticityAddress =
@@ -87,6 +87,64 @@ export default function StepReviewStatus({ kycData }) {
     finalStatus = "manual";
   }
 
+  // Server-backed results
+  const [duplicateResult, setDuplicateResult] = useState(null);
+  const [decisionResult, setDecisionResult] = useState(null);
+
+  useEffect(() => {
+    // Duplicate check
+    fetch("/api/check/duplicate", { method: "POST" })
+      .then((res) => res.json())
+      .then((data) => {
+        if (typeof data.duplicate === "boolean") {
+          setDuplicateResult(data);
+        }
+      })
+      .catch(() => {});
+
+    // Final decision
+    const payload = {
+      identity: {
+        qualityScore: scanQualityIdentity ?? 0,
+        status: identityDocStatus,
+      },
+      address: {
+        qualityScore: scanQualityAddress ?? 0,
+        status: addressDocStatus,
+      },
+      faceMatchScore: matchScore,
+      attempts: {
+        identity: attemptsIdentity,
+        address: attemptsAddress,
+      },
+    };
+
+    fetch("/api/kyc/final-decision", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.success) {
+          setDecisionResult({
+            finalStatus: data.finalStatus,
+            riskScore: data.riskScore,
+            reasons: Array.isArray(data.reasons) ? data.reasons : [],
+          });
+        }
+      })
+      .catch(() => {});
+  }, [
+    scanQualityIdentity,
+    scanQualityAddress,
+    identityDocStatus,
+    addressDocStatus,
+    matchScore,
+    attemptsIdentity,
+    attemptsAddress,
+  ]);
+
   // ---------- Detailed Reasons ----------
   const rejectionReasons = [];
   if (identityDocStatus === "Rejected")
@@ -119,6 +177,8 @@ export default function StepReviewStatus({ kycData }) {
     return Math.min(100, Math.round(score));
   })();
 
+  const effectiveFinalStatus = decisionResult?.finalStatus || finalStatus;
+
   const badgeStyles = {
     approved:
       "inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700",
@@ -129,15 +189,15 @@ export default function StepReviewStatus({ kycData }) {
   };
 
   const badgeLabel =
-    finalStatus === "approved"
+    effectiveFinalStatus === "approved"
       ? "Approved"
-      : finalStatus === "manual"
+      : effectiveFinalStatus === "manual"
       ? "Under Manual Review"
       : "Rejected";
 
   const primaryButton = () => {
-    if (finalStatus === "approved") return "Finish";
-    if (finalStatus === "manual") return "Okay";
+    if (effectiveFinalStatus === "approved") return "Finish";
+    if (effectiveFinalStatus === "manual") return "Okay";
     return "Retry KYC";
   };
 
@@ -168,17 +228,36 @@ export default function StepReviewStatus({ kycData }) {
 
       {/* Final Status */}
       <section className="rounded-2xl border border-slate-100 bg-white px-5 py-5 shadow-sm space-y-3">
-        <span className={badgeStyles[finalStatus]}>{badgeLabel}</span>
+        <span className={badgeStyles[effectiveFinalStatus]}>{badgeLabel}</span>
 
         {/* Approved */}
-        {finalStatus === "approved" && (
+        {effectiveFinalStatus === "approved" && (
+          <p className="text-sm text-slate-600">
+            Your KYC is Approved. All checks have passed successfully.
+          </p>
+        )}
+        {effectiveFinalStatus === "manual" && (
+          <p className="text-sm text-slate-600">
+            KYC Under Manual Review. A bank officer will verify your documents
+            shortly.
+          </p>
+        )}
+        {effectiveFinalStatus === "rejected" && (
+          <p className="text-sm text-slate-600">
+            We could not auto-approve your KYC. Please review the details below
+            or reattempt the KYC.
+          </p>
+        )}
+
+        {/* Approved */}
+        {effectiveFinalStatus === "approved" && (
           <p className="text-sm text-slate-600">
             Your KYC is approved. Your account will be activated shortly.
           </p>
         )}
 
         {/* Manual Review */}
-        {finalStatus === "manual" && (
+        {effectiveFinalStatus === "manual" && (
           <div className="space-y-2">
             <p className="text-sm text-slate-600">
               A bank officer will review your documents shortly.
@@ -193,9 +272,11 @@ export default function StepReviewStatus({ kycData }) {
         )}
 
         {/* Rejected */}
-        {finalStatus === "rejected" && (
+        {effectiveFinalStatus === "rejected" && (
           <div className="space-y-2">
-            <p className="text-sm text-slate-600">Your KYC could not be approved.</p>
+            <p className="text-sm text-slate-600">
+              Your KYC could not be approved.
+            </p>
             <ul className="list-disc pl-5 text-xs text-red-600">
               {rejectionReasons.map((r, i) => (
                 <li key={i}>{r}</li>
@@ -217,7 +298,9 @@ export default function StepReviewStatus({ kycData }) {
         <h3 className="text-sm font-semibold text-slate-900 mb-2">
           Overall Risk Score
         </h3>
-        <p className="text-2xl font-bold text-slate-800">{riskScore}/100</p>
+        <p className="text-2xl font-bold text-slate-800">
+          {decisionResult?.riskScore ?? riskScore}/100
+        </p>
         <p className="text-xs text-slate-500 mt-1">
           Lower scores indicate safer, more reliable KYC submissions.
         </p>
@@ -230,12 +313,21 @@ export default function StepReviewStatus({ kycData }) {
         </h3>
         <ul className="space-y-1 text-xs text-slate-600">
           <li>✓ Documents Selected</li>
-          <li>{identityDocStatus === "Accepted" ? "✓" : "!"} Identity Document Quality</li>
-          <li>{addressDocStatus === "Accepted" ? "✓" : "!"} Address Document Quality</li>
+          <li>
+            {identityDocStatus === "Accepted" ? "✓" : "!"} Identity Document
+            Quality
+          </li>
+          <li>
+            {addressDocStatus === "Accepted" ? "✓" : "!"} Address Document
+            Quality
+          </li>
           <li>{matchScore >= 80 ? "✓" : "!"} Face Match Score</li>
           <li>{uploadStatus === "success" ? "✓" : "!"} Upload Reliability</li>
           <li>
-            {duplicateCheck === "No duplicate found" ? "✓" : "!"} Duplicate KYC Check
+            {duplicateResult?.duplicate
+              ? "✗"
+              : "✓"}{" "}
+            Duplicate KYC Check
           </li>
         </ul>
       </section>
@@ -244,7 +336,6 @@ export default function StepReviewStatus({ kycData }) {
       <section className="space-y-3">
         <h3 className="text-sm font-semibold text-slate-900">Document Summary</h3>
         <div className="grid gap-4 md:grid-cols-2">
-          
           {/* Identity */}
           <div className="space-y-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
             <div className="flex items-center justify-between">
@@ -273,7 +364,9 @@ export default function StepReviewStatus({ kycData }) {
                 )}
               </div>
               <div className="space-y-1 text-xs text-slate-600">
-                <p><span className="font-medium">Attempts:</span> {attemptsIdentity}</p>
+                <p>
+                  <span className="font-medium">Attempts:</span> {attemptsIdentity}
+                </p>
                 <span className="inline-block rounded-full bg-slate-100 px-2 py-0.5 text-[11px]">
                   {identityDocStatus}
                 </span>
@@ -309,7 +402,9 @@ export default function StepReviewStatus({ kycData }) {
                 )}
               </div>
               <div className="space-y-1 text-xs text-slate-600">
-                <p><span className="font-medium">Attempts:</span> {attemptsAddress}</p>
+                <p>
+                  <span className="font-medium">Attempts:</span> {attemptsAddress}
+                </p>
                 <span className="inline-block rounded-full bg-slate-100 px-2 py-0.5 text-[11px]">
                   {addressDocStatus}
                 </span>
@@ -323,7 +418,6 @@ export default function StepReviewStatus({ kycData }) {
       <section className="space-y-3">
         <h3 className="text-sm font-semibold text-slate-900">Photo Summary</h3>
         <div className="grid gap-4 md:grid-cols-3">
-
           {/* Passport Photo */}
           <div className="space-y-2 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
             <p className="text-xs tracking-wide text-slate-500">
@@ -374,9 +468,13 @@ export default function StepReviewStatus({ kycData }) {
       <section className="space-y-3">
         <h3 className="text-sm font-semibold text-slate-900">Server Checks</h3>
         <div className="space-y-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-          <div className="flex justify-between text-xs text-slate-600">
+          <div className="flex items-center justify-between text-xs text-slate-600">
             <span className="font-medium">Duplicate KYC Check</span>
-            <span className="text-emerald-600">{duplicateCheck}</span>
+            <span className="text-emerald-600">
+              {duplicateResult?.duplicate
+                ? `Duplicate detected (${duplicateResult.matchedCustomerId || "ID unknown"})`
+                : "No duplicate found"}
+            </span>
           </div>
           <div className="flex flex-col gap-2 text-xs text-slate-600 sm:flex-row">
             <div className="flex justify-between sm:w-1/2">
@@ -388,10 +486,28 @@ export default function StepReviewStatus({ kycData }) {
               <span>{authenticityAddress}</span>
             </div>
           </div>
-          <div className="flex justify-between text-xs text-slate-600">
+          <div className="flex items-center justify-between text-xs text-slate-600">
             <span className="font-medium">Upload Reliability</span>
-            <span>{uploadReliability}</span>
+            <span className="text-slate-700">{uploadReliability}</span>
           </div>
+
+          {decisionResult?.riskScore != null && (
+            <div className="flex items-center justify-between text-xs text-slate-600">
+              <span className="font-medium">Overall Risk Score</span>
+              <span className="text-slate-700">{decisionResult.riskScore} / 100</span>
+            </div>
+          )}
+
+          {decisionResult?.reasons?.length > 0 && (
+            <div className="pt-2 text-xs text-slate-600">
+              <p className="font-medium">Key Reasons</p>
+              <ul className="mt-1 list-disc space-y-0.5 pl-4">
+                {decisionResult.reasons.map((reason, idx) => (
+                  <li key={idx}>{reason}</li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       </section>
     </div>

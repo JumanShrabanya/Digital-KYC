@@ -30,7 +30,7 @@ export default function StepScanDocument({ kycData, setKycData, error }) {
   const identityQualityLabel = labelForScore(identityScore);
   const addressQualityLabel = labelForScore(addressScore);
 
-  const handleSimulateScan = (type) => {
+  const handleSimulateScan = async (type) => {
     const isIdentity = type === "identity";
     const currentAttempts = isIdentity ? identityAttempts : addressAttempts;
     if (currentAttempts >= maxAttempts) return;
@@ -40,15 +40,38 @@ export default function StepScanDocument({ kycData, setKycData, error }) {
 
     if (!uploadedName) return;
 
-    const randomScore = Math.floor(Math.random() * 101); // 0–100
+    const base64 = isIdentity
+      ? kycData?.identityDocumentBase64
+      : kycData?.addressDocumentBase64;
+    const docType = isIdentity ? identityDoc : addressDoc;
+
+    let qualityScore = Math.floor(Math.random() * 101);
+
+    if (base64 && docType) {
+      try {
+        const res = await fetch("/api/upload/document", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ docType, fileBase64: base64 }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (typeof data.qualityScore === "number") {
+            qualityScore = data.qualityScore;
+          }
+        }
+      } catch {
+        // fall back to local random score
+      }
+    }
 
     setKycData((prev) => ({
       ...prev,
       scanQualityIdentity: isIdentity
-        ? randomScore
+        ? qualityScore
         : prev?.scanQualityIdentity ?? prev?.scanQualityIdentity,
       scanQualityAddress: !isIdentity
-        ? randomScore
+        ? qualityScore
         : prev?.scanQualityAddress ?? prev?.scanQualityAddress,
       attempts: {
         ...(prev?.attempts || {}),
@@ -105,19 +128,25 @@ export default function StepScanDocument({ kycData, setKycData, error }) {
                   onChange={(e) => {
                     const file = e.target.files?.[0] || null;
                     if (file) {
-                      const url = URL.createObjectURL(file);
-                      setIdentityPreviewUrl(url);
-                      setKycData((prev) => ({
-                        ...prev,
-                        documentImageNameIdentity: file.name,
-                        identityDocumentPreview: url,
-                      }));
+                      const reader = new FileReader();
+                      reader.onloadend = () => {
+                        const base64 = reader.result;
+                        setIdentityPreviewUrl(base64);
+                        setKycData((prev) => ({
+                          ...prev,
+                          documentImageNameIdentity: file.name,
+                          identityDocumentPreview: base64,
+                          identityDocumentBase64: base64,
+                        }));
+                      };
+                      reader.readAsDataURL(file);
                     } else {
                       setIdentityPreviewUrl(null);
                       setKycData((prev) => ({
                         ...prev,
                         documentImageNameIdentity: null,
                         identityDocumentPreview: null,
+                        identityDocumentBase64: null,
                       }));
                     }
                   }}
@@ -223,19 +252,25 @@ export default function StepScanDocument({ kycData, setKycData, error }) {
                   onChange={(e) => {
                     const file = e.target.files?.[0] || null;
                     if (file) {
-                      const url = URL.createObjectURL(file);
-                      setAddressPreviewUrl(url);
-                      setKycData((prev) => ({
-                        ...prev,
-                        documentImageNameAddress: file.name,
-                        addressDocumentPreview: url,
-                      }));
+                      const reader = new FileReader();
+                      reader.onloadend = () => {
+                        const base64 = reader.result;
+                        setAddressPreviewUrl(base64);
+                        setKycData((prev) => ({
+                          ...prev,
+                          documentImageNameAddress: file.name,
+                          addressDocumentPreview: base64,
+                          addressDocumentBase64: base64,
+                        }));
+                      };
+                      reader.readAsDataURL(file);
                     } else {
                       setAddressPreviewUrl(null);
                       setKycData((prev) => ({
                         ...prev,
                         documentImageNameAddress: null,
                         addressDocumentPreview: null,
+                        addressDocumentBase64: null,
                       }));
                     }
                   }}
